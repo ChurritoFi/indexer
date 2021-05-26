@@ -136,3 +136,56 @@ func getElectedValidatorsAtEpoch(client *graphql.Client, epoch uint64) (electedV
 
 	return resp, nil
 }
+
+func getValidatorGroupsAndValidatorsDetails(client *graphql.Client) (celoValidatorGroupsAndValidatorsDetails, error) {
+	req := graphql.NewRequest(`{
+			celoValidatorGroups {
+				account {
+					address
+					name
+					group {
+						activeGold
+						commission
+						lockedGold
+						nonvotingLockedGold
+						receivableVotes
+						votes
+					}
+					claims(first: 10){
+						edges{
+							node {
+								element
+								type
+								verified
+							}
+						}
+					}
+		
+				}
+				numMembers
+				affiliates(first: 5) {
+					edges {
+						node {
+							lastElected
+							score
+							address
+							attestationsFulfilled
+							attestationsRequested
+							score
+						}
+					}
+				}
+				accumulatedRewards
+				accumulatedActive
+			}
+		}
+		`)
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(time.Second*90))
+	defer cancel()
+	var resp celoValidatorGroupsAndValidatorsDetails
+	if err := client.Run(ctx, req, &resp); err != nil {
+		return resp, err
+	}
+	return resp, nil
+}

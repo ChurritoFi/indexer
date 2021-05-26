@@ -36,7 +36,8 @@ func Index(DB *pg.DB) {
 
 	vgData, err := getValidatorGroupsAndValidatorsBasicData(gqlClient)
 	if err != nil {
-		log.Fatal(err.Error())
+		log.Println("Couldn't fetch data.")
+		log.Println(err.Error())
 	}
 	log.Println("Fetched all VGs")
 
@@ -199,5 +200,10 @@ func Index(DB *pg.DB) {
 
 	// Index the current epoch.
 	log.Println("Index the current epoch")
+
+	// Fetch currently elected validators.
+	// currentlyElectedValidators := getElectedValidators(httpClient)
+	details, err := getValidatorGroupsAndValidatorsDetails(gqlClient)
+	log.Println(len(details.CeloValidatorGroups))
 
 }
