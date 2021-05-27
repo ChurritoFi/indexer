@@ -12,16 +12,6 @@ type targetApy struct {
 	TargetApy string `json:"target_apy"`
 }
 
-type electedValidators struct {
-	Validators []electedValidator
-}
-
-type electedValidator struct {
-	Name    string
-	Address string
-	Group   string
-}
-
 type epochVGRegistered struct {
 	Block int
 	Epoch int
@@ -96,3 +86,13 @@ type celoValidatorGroupsAndValidatorsDetails struct {
 		NumMembers int `json:"numMembers"`
 	} `json:"celoValidatorGroups"`
 }
+
+// type electedValidators struct {
+// 	Validators []electedValidator
+// }
+
+// type electedValidator struct {
+// 	Name    string
+// 	Address string
+// 	Group   string
+// }

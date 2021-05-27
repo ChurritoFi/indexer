@@ -48,19 +48,6 @@ func getTargetAPY(client *http.Client) (string, error) {
 	return apy.TargetApy, nil
 }
 
-func getElectedValidators(client *http.Client) ([]electedValidator, error) {
-	electedValidators := new(electedValidators)
-
-	resp, err := client.Get("https://celo-on-chain-data-service.onrender.com/elected-validators")
-	if err != nil {
-		return electedValidators.Validators, err
-	}
-	defer resp.Body.Close()
-
-	json.NewDecoder(resp.Body).Decode(electedValidators)
-	return electedValidators.Validators, nil
-}
-
 func getEpochVGRegistered(client *http.Client, address string) (epochVGRegistered, error) {
 	epochRegistered := new(epochVGRegistered)
 	resp, err := client.Get(fmt.Sprintf("https://celo-on-chain-data-service.onrender.com/epoch-vg-registered/%s", address))
@@ -187,3 +174,16 @@ func getValidatorGroupsAndValidatorsDetails(client *graphql.Client) (celoValidat
 	}
 	return resp, nil
 }
+
+// func getElectedValidators(client *http.Client) ([]electedValidator, error) {
+// 	electedValidators := new(electedValidators)
+
+// 	resp, err := client.Get("https://celo-on-chain-data-service.onrender.com/elected-validators")
+// 	if err != nil {
+// 		return electedValidators.Validators, err
+// 	}
+// 	defer resp.Body.Close()
+
+// 	json.NewDecoder(resp.Body).Decode(electedValidators)
+// 	return electedValidators.Validators, nil
+// }

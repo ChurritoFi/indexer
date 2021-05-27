@@ -14,36 +14,22 @@ import (
 //Index is a function that runs periodically to index the Celo chain.
 func Index(DB *pg.DB) {
 
-	/*
-		### Indexing algorithm
-
-		1. Find last indexed epoch.
-		2. Find the current epoch.
-		3. If the last indexed epoch is not the current epoch
-			1. Index all the epochs between last indexed epoch and the current epoch.
-			2. For each prev epoch, index only if the validator was elected or not(to calculate `epochs_served` for the VG)
-		4. If last indexed epoch == current epoch
-			1. Fetch all the elected validators for this epoch
-			2. Fetch all the Validator Groups along with the data
-			3. Make necessary API calls to the NodeJS service for getting on-chain data
-			4. Calculate derived scores - performance score, transparency score etc.
-
-	*/
 	log.Println("Start indexing...")
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	gqlClient := graphql.NewClient("https://explorer.celo.org/graphiql")
 
 	// Fetch all ValidatorGroups and Validators.
-
 	vgData, err := getValidatorGroupsAndValidatorsBasicData(gqlClient)
 	if err != nil {
 		log.Println("Couldn't fetch data.")
 		log.Println(err.Error())
+	} else {
+		log.Println("Fetched all VGs")
 	}
-	log.Println("Fetched all VGs")
 
 	// Loop through all the ValidatorGroups
 	for _, vg := range vgData.CeloValidatorGroups {
+
 		// Check if VG is in DB
 		// Potential Improvement: Fetch all VGs from the DB at once, and then cross-check against that list.
 		vgFromDB := new(model.ValidatorGroup)
@@ -101,11 +87,11 @@ func Index(DB *pg.DB) {
 	} // Finished indexing new ValidatorGroups, and Validators.
 	log.Println("Finished indexing VGs and Vs.")
 
-	// Start indexing elected validators for the past epoch.
 	var epochToIndexFrom uint64
 	lastIndexedEpoch, err := findLastIndexedEpoch(DB)
 
 	if err != nil {
+		// If no Epochs are present in DB, start from Epoch 1.
 		if err.Error() == NoResultError {
 			epochToIndexFrom = 1
 		}
@@ -122,23 +108,21 @@ func Index(DB *pg.DB) {
 	}
 	log.Println("Current epoch:", currentEpoch)
 
+	// Index prev epochs if epochToIndexFrom != currentEpoch
 	if epochToIndexFrom != currentEpoch {
-
-		// Index the elected validators of all the prev epoch.
-		/*
-			1. Fetch all VGs from DB.
-			2. Loop through the validators on every epoch
-			3. Increase epochs served for the vg, once per epoch. Break the loop if found the group once in the epoch.
-			4. Make the changes to the DB
-		*/
 
 		var validatorGroupsFromDB []*model.ValidatorGroup
 		if err := DB.Model(&validatorGroupsFromDB).Select(); err != nil {
 			log.Fatal(err)
 		}
+
+		// Loop through all the epochs between epochToIndexFrom - currentEpoch
 		for epoch := epochToIndexFrom; epoch < currentEpoch; epoch++ {
+
+			// Keeps tally of which VGs have served in the Epoch.
 			vgInEpoch := make(map[string]bool)
 
+			// Used to inserting the Epoch to DB.
 			var startBlock, endBlock uint64
 
 			if epoch == 1 {
@@ -154,7 +138,6 @@ func Index(DB *pg.DB) {
 			if err != nil {
 				log.Println("Error fetching elected validators.")
 				log.Fatal(err.Error())
-				return
 			}
 
 			currEpoch := model.Epoch{
@@ -174,10 +157,14 @@ func Index(DB *pg.DB) {
 				}
 			}
 
+			// Loop through all the VGs that have served in this epoch
 			for vg, served := range vgInEpoch {
+
 				if served {
+
+					found := false // keeps track of whether the vg we're looking for is present in the DB or not.
 					vgFromDB := new(model.ValidatorGroup)
-					found := false
+					// Loops through VGs from DB to find the VG we want to update.
 					for _, groupFromDB := range validatorGroupsFromDB {
 						if vg == groupFromDB.Address {
 							vgFromDB = groupFromDB
@@ -185,7 +172,9 @@ func Index(DB *pg.DB) {
 							break
 						}
 					}
+
 					if found {
+						// Increment the EpochsServed and update the DB.
 						vgFromDB.EpochsServed++
 						_, err := DB.Model(vgFromDB).WherePK().Update()
 						if err != nil {
@@ -194,6 +183,8 @@ func Index(DB *pg.DB) {
 					}
 				}
 			}
+
+			// Small pause to not overload the API we're using to fetch the ElectedValidators
 			time.Sleep(2 * time.Second)
 		}
 
@@ -217,41 +208,25 @@ func Index(DB *pg.DB) {
 	}
 
 	/*
-		Things I have:
-			1. VGs and Vs from DB.
-			2. Current epoch.
-			3. Target Yield of current epoch
-			4. Details about all the VGs and Vs
-
-		Things I want:
-			1. Update the stats and metrics of all the Vs
-			2. Update the stats and metrics of all the VGs
-			3. Find derived scores for each VG ->
-				1. Estimated APY
-				2. Attestations Percentage
-				3. Performance Score
-				4. Transparency score
-
-		Steps:
-			1. Find Target APY ✅
-			2. Loop through all the ValidatorGroup details
-				A. For all the Validators
-					a. Populate ValidatorStats ✅
-					b. Polulate Validator metrics ✅
-					c. Save and update the models. ✅
-				B. For the ValidatorGroup
-					a. Find Estimated APY for the VG ✅
-					b. Find Attestation Percentage for the VG ✅
-					c. Populate ValidatorGroupStats ✅
-					d. Update VG fields ✅
-					e. Update claims
-			3. Loop through all the VGs from the DB
-				A. Calculate the `LockedCeloPercentile`
-				B. Calculate the `Performance Score`
-
+		1. Find Target APY ✅
+		2. Loop through all the ValidatorGroup details
+			A. For all the Validators
+				a. Populate ValidatorStats ✅
+				b. Polulate Validator metrics ✅
+				c. Save and update the models. ✅
+			B. For the ValidatorGroup
+				a. Find Estimated APY for the VG ✅
+				b. Find Attestation Percentage for the VG ✅
+				c. Populate ValidatorGroupStats ✅
+				d. Update VG fields ✅
+				e. Update claims ✅
+		3. Loop through all the VGs from the DB
+			A. Calculate the `LockedCeloPercentile`
+			B. Calculate the `Performance Score`
+			C. Calculate the `Transparency Score`
 	*/
-	targetYield, _ := getTargetAPY(httpClient)
 
+	targetYield, _ := getTargetAPY(httpClient)
 	targetYieldFloat := convertStringToBigFloat(targetYield)
 	log.Printf("%f target apy", targetYieldFloat)
 
@@ -266,8 +241,11 @@ func Index(DB *pg.DB) {
 		log.Println(err)
 	}
 
+	totalLockedCelo := float64(0) // To calculate LockedCeloPercentile
+
 	for _, validatorGroup := range details.CeloValidatorGroups {
 
+		// Find the current vg from the validatorGroupsFromDB
 		vgFromDB := new(model.ValidatorGroup)
 		for _, vg := range validatorGroupsFromDB {
 			if vg.Address == validatorGroup.Account.Address {
@@ -276,17 +254,25 @@ func Index(DB *pg.DB) {
 			}
 		}
 		log.Println(vgFromDB.Name)
-		isVGCurrentlyElected := false
-		validatorScores := make([]float64, 0, 10)
-		attestationScores := make([]int, 0, 10)
+
+		isVGCurrentlyElected := false             // Used for updating VG
+		validatorScores := make([]float64, 0, 10) // Used for calculating `GroupScore` for the VG
+		attestationScores := make([]int, 0, 10)   // Used for calculating `AttestationPercentage` for the VG
+
+		// Loop through the Validators under the ValidatorGroup
 		for _, validator := range validatorGroup.Affiliates.Edges {
+
+			// Find the current validator from DB
 			vFromDB := new(model.Validator)
 			for _, v := range vgFromDB.Validators {
 				if v.Address == validator.Node.Address {
 					vFromDB = v
 				}
 			}
+
 			vScore := divideBy1E24(validator.Node.Score)
+
+			// Current round of stats for the Validator
 			vStats := &model.ValidatorStats{
 				AttestationsRequested:  validator.Node.AttestationsRequested,
 				AttenstationsFulfilled: validator.Node.AttestationsFulfilled,
@@ -300,12 +286,18 @@ func Index(DB *pg.DB) {
 				log.Fatal(err)
 			}
 
+			// Find which is the epoch, validator was last elected in.
 			epochLastElected := getEpochFromBlock(validator.Node.LastElected)
+
 			if epochLastElected == currentEpoch {
 				vFromDB.CurrentlyElected = true
 				isVGCurrentlyElected = true
+
+				// Do this inside this IF branch because, only consider validator scores of elected validators for the `GroupScore`
 				validatorScores = append(validatorScores, vScore)
 			}
+
+			// Used for calculating `AttestationPercentage` for the VG.
 			attestationScores = append(attestationScores, (vStats.AttestationsRequested / vStats.AttenstationsFulfilled))
 
 			_, err = DB.Model(vFromDB).WherePK().Update()
@@ -313,29 +305,34 @@ func Index(DB *pg.DB) {
 				log.Fatal(err)
 			}
 
-		}
+		} // Finish indexing Validators under the ValidatorGroup
 
 		lockedCelo := divideBy1E18(validatorGroup.Account.Group.LockedGold)
 		groupShare := divideBy1E24(validatorGroup.Account.Group.Commission)
 		votes := uint64(divideBy1E18(validatorGroup.Account.Group.Votes))
+		// votingCap = votesRecieved + availableVotes
 		votingCap := votes + uint64(divideBy1E18(validatorGroup.Account.Group.ReceivableVotes))
 		slashingScore, _ := getVGSlashingMultiplier(httpClient, validatorGroup.Account.Address)
 		slashingScoreFloat := divideBy1E24(slashingScore)
 
+		// groupScore is the average of all elected validators under the VG
 		groupScore := float64(0)
 		for _, vScore := range validatorScores {
 			groupScore += vScore
 		}
 		groupScore /= float64(len(validatorScores))
+		// estimatedAPY = targetAPY * groupScore
 		estimatedAPY := new(big.Float).Quo(targetYieldFloat, big.NewFloat(groupScore))
 		estimatedAPYFloat, _ := estimatedAPY.Float64()
 
+		// groupAttestationScore(`AttestationPercentage`) is the average of the attestation scores(attestations requested / attestations fulfilled) of each Validator
 		groupAttestationScore := float64(0)
 		for _, attestationScore := range attestationScores {
 			groupAttestationScore += float64(attestationScore)
 		}
 		groupAttestationScore /= float64(len(attestationScores))
 
+		// Current round of VGStats for the VG
 		vgStats := &model.ValidatorGroupStats{
 			LockedCelo:            lockedCelo,
 			LockedCeloPercentile:  lockedCelo,
@@ -350,6 +347,7 @@ func Index(DB *pg.DB) {
 			EstimatedAPY:          estimatedAPYFloat,
 		}
 
+		// Update the current stats for the VG
 		vgFromDB.AvailableVotes = vgStats.VotingCap - vgStats.Votes
 		vgFromDB.RecievedVotes = vgStats.Votes
 		vgFromDB.CurrentlyElected = isVGCurrentlyElected
@@ -358,8 +356,13 @@ func Index(DB *pg.DB) {
 		vgFromDB.GroupScore = groupScore
 		vgFromDB.AttestationScore = groupAttestationScore
 		vgFromDB.EstimatedAPY = estimatedAPYFloat
-		// Things left to calculate - LockedCeloPercentile, Performance Score, Transparency Score
 
+		// If VG is currently elected, increment VG.EpochsServed
+		if isVGCurrentlyElected {
+			vgFromDB.EpochsServed++
+		}
+
+		// Loop through the claims, set VG.WebsiteURL if claim is of type "domain"
 		for _, claim := range validatorGroup.Account.Claims.Edges {
 			if claim.Node.Type == "domain" {
 				vgFromDB.WebsiteURL = claim.Node.Element
@@ -367,18 +370,21 @@ func Index(DB *pg.DB) {
 			}
 		}
 
-		if isVGCurrentlyElected {
-			vgFromDB.EpochsServed++
-		}
+		// Used for calculating `LockedCeloPercentile` later.
+		totalLockedCelo += vgFromDB.LockedCelo
 
+		// Insert VGStats for the current round.
 		_, err := DB.Model(vgStats).Insert()
 		if err != nil {
 			log.Println(err)
 		}
+
+		// Update vgFromDB in the DB.
 		_, err = DB.Model(vgFromDB).WherePK().Update()
 		if err != nil {
 			log.Fatal(err)
 		}
 
 	}
+
 }
