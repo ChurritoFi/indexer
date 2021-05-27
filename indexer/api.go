@@ -144,10 +144,8 @@ func getValidatorGroupsAndValidatorsDetails(client *graphql.Client) (celoValidat
 					address
 					name
 					group {
-						activeGold
 						commission
 						lockedGold
-						nonvotingLockedGold
 						receivableVotes
 						votes
 					}

@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"log"
+	"math/big"
 	"net/http"
 	"time"
 
@@ -200,10 +201,184 @@ func Index(DB *pg.DB) {
 
 	// Index the current epoch.
 	log.Println("Index the current epoch")
+	latestEpoch := new(model.Epoch)
+	err = DB.Model(&latestEpoch).Where("number = ?", currentEpoch).Limit(1).Select()
+	if err.Error() == NoResultError {
+		latestEpoch := model.Epoch{
+			StartBlock: ((currentEpoch - 1) * 17280) + 1,
+			EndBlock:   currentEpoch * 17280,
+			Number:     currentEpoch,
+		}
+		_, err = DB.Model(&latestEpoch).Insert()
+		if err != nil {
+			log.Fatal(err)
+			return
+		}
+	}
 
-	// Fetch currently elected validators.
-	// currentlyElectedValidators := getElectedValidators(httpClient)
+	/*
+		Things I have:
+			1. VGs and Vs from DB.
+			2. Current epoch.
+			3. Target Yield of current epoch
+			4. Details about all the VGs and Vs
+
+		Things I want:
+			1. Update the stats and metrics of all the Vs
+			2. Update the stats and metrics of all the VGs
+			3. Find derived scores for each VG ->
+				1. Estimated APY
+				2. Attestations Percentage
+				3. Performance Score
+				4. Transparency score
+
+		Steps:
+			1. Find Target APY ✅
+			2. Loop through all the ValidatorGroup details
+				A. For all the Validators
+					a. Populate ValidatorStats ✅
+					b. Polulate Validator metrics ✅
+					c. Save and update the models. ✅
+				B. For the ValidatorGroup
+					a. Find Estimated APY for the VG ✅
+					b. Find Attestation Percentage for the VG ✅
+					c. Populate ValidatorGroupStats ✅
+					d. Update VG fields ✅
+					e. Update claims
+			3. Loop through all the VGs from the DB
+				A. Calculate the `LockedCeloPercentile`
+				B. Calculate the `Performance Score`
+
+	*/
+	targetYield, _ := getTargetAPY(httpClient)
+
+	targetYieldFloat := convertStringToBigFloat(targetYield)
+	log.Printf("%f target apy", targetYieldFloat)
+
 	details, err := getValidatorGroupsAndValidatorsDetails(gqlClient)
-	log.Println(len(details.CeloValidatorGroups))
+	if err != nil {
+		log.Fatal(err)
+	}
 
+	var validatorGroupsFromDB []*model.ValidatorGroup
+	err = DB.Model(&validatorGroupsFromDB).Relation("Validators").Select()
+	if err != nil {
+		log.Println(err)
+	}
+
+	for _, validatorGroup := range details.CeloValidatorGroups {
+
+		vgFromDB := new(model.ValidatorGroup)
+		for _, vg := range validatorGroupsFromDB {
+			if vg.Address == validatorGroup.Account.Address {
+				vgFromDB = vg
+				break
+			}
+		}
+		log.Println(vgFromDB.Name)
+		isVGCurrentlyElected := false
+		validatorScores := make([]float64, 0, 10)
+		attestationScores := make([]int, 0, 10)
+		for _, validator := range validatorGroup.Affiliates.Edges {
+			vFromDB := new(model.Validator)
+			for _, v := range vgFromDB.Validators {
+				if v.Address == validator.Node.Address {
+					vFromDB = v
+				}
+			}
+			vScore := divideBy1E24(validator.Node.Score)
+			vStats := &model.ValidatorStats{
+				AttestationsRequested:  validator.Node.AttestationsRequested,
+				AttenstationsFulfilled: validator.Node.AttestationsFulfilled,
+				LastElected:            validator.Node.LastElected,
+				Score:                  vScore,
+				EpochId:                lastIndexedEpoch.ID,
+				ValidatorId:            vFromDB.ID,
+			}
+			_, err := DB.Model(vStats).Insert()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			epochLastElected := getEpochFromBlock(validator.Node.LastElected)
+			if epochLastElected == currentEpoch {
+				vFromDB.CurrentlyElected = true
+				isVGCurrentlyElected = true
+				validatorScores = append(validatorScores, vScore)
+			}
+			attestationScores = append(attestationScores, (vStats.AttestationsRequested / vStats.AttenstationsFulfilled))
+
+			_, err = DB.Model(vFromDB).WherePK().Update()
+			if err != nil {
+				log.Fatal(err)
+			}
+
+		}
+
+		lockedCelo := divideBy1E18(validatorGroup.Account.Group.LockedGold)
+		groupShare := divideBy1E24(validatorGroup.Account.Group.Commission)
+		votes := uint64(divideBy1E18(validatorGroup.Account.Group.Votes))
+		votingCap := votes + uint64(divideBy1E18(validatorGroup.Account.Group.ReceivableVotes))
+		slashingScore, _ := getVGSlashingMultiplier(httpClient, validatorGroup.Account.Address)
+		slashingScoreFloat := divideBy1E24(slashingScore)
+
+		groupScore := float64(0)
+		for _, vScore := range validatorScores {
+			groupScore += vScore
+		}
+		groupScore /= float64(len(validatorScores))
+		estimatedAPY := new(big.Float).Quo(targetYieldFloat, big.NewFloat(groupScore))
+		estimatedAPYFloat, _ := estimatedAPY.Float64()
+
+		groupAttestationScore := float64(0)
+		for _, attestationScore := range attestationScores {
+			groupAttestationScore += float64(attestationScore)
+		}
+		groupAttestationScore /= float64(len(attestationScores))
+
+		vgStats := &model.ValidatorGroupStats{
+			LockedCelo:            lockedCelo,
+			LockedCeloPercentile:  lockedCelo,
+			GroupShare:            groupShare,
+			Votes:                 votes,
+			VotingCap:             votingCap,
+			AttestationPercentage: groupAttestationScore,
+			SlashingScore:         slashingScoreFloat,
+			Epoch:                 lastIndexedEpoch,
+			EpochId:               latestEpoch.ID,
+			ValidatorGroupId:      vgFromDB.ID,
+			EstimatedAPY:          estimatedAPYFloat,
+		}
+
+		vgFromDB.AvailableVotes = vgStats.VotingCap - vgStats.Votes
+		vgFromDB.RecievedVotes = vgStats.Votes
+		vgFromDB.CurrentlyElected = isVGCurrentlyElected
+		vgFromDB.LockedCelo = vgStats.LockedCelo
+		vgFromDB.SlashingPenaltyScore = slashingScoreFloat
+		vgFromDB.GroupScore = groupScore
+		vgFromDB.AttestationScore = groupAttestationScore
+		vgFromDB.EstimatedAPY = estimatedAPYFloat
+		// Things left to calculate - LockedCeloPercentile, Performance Score, Transparency Score
+
+		for _, claim := range validatorGroup.Account.Claims.Edges {
+			if claim.Node.Type == "domain" {
+				vgFromDB.WebsiteURL = claim.Node.Element
+				vgFromDB.VerifiedDNS = claim.Node.Verified
+			}
+		}
+
+		if isVGCurrentlyElected {
+			vgFromDB.EpochsServed++
+		}
+
+		_, err := DB.Model(vgStats).Insert()
+		if err != nil {
+			log.Println(err)
+		}
+		_, err = DB.Model(vgFromDB).WherePK().Update()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+	}
 }

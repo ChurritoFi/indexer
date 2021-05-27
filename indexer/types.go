@@ -64,15 +64,19 @@ type celoValidatorGroupsAndValidatorsDetails struct {
 		Account struct {
 			Address string `json:"address"`
 			Claims  struct {
-				Edges []interface{} `json:"edges"`
+				Edges []struct {
+					Node struct {
+						Element  string `json:"element"`
+						Type     string `json:"type"`
+						Verified bool   `json:"verified"`
+					} `json:"node"`
+				} `json:"edges"`
 			} `json:"claims"`
 			Group struct {
-				ActiveGold          string `json:"activeGold"`
-				Commission          string `json:"commission"`
-				LockedGold          string `json:"lockedGold"`
-				NonvotingLockedGold string `json:"nonvotingLockedGold"`
-				ReceivableVotes     string `json:"receivableVotes"`
-				Votes               string `json:"votes"`
+				Commission      string `json:"commission"`
+				LockedGold      string `json:"lockedGold"`
+				ReceivableVotes string `json:"receivableVotes"`
+				Votes           string `json:"votes"`
 			} `json:"group"`
 			Name string `json:"name"`
 		} `json:"account"`
