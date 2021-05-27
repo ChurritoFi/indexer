@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
-	github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526180158-730a0be8f9b4
+	github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526192944-b6b4fe2fbeab
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
 	github.com/go-pg/pg/extra/pgdebug v0.2.0
 	github.com/go-pg/pg/v10 v10.9.3

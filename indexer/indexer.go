@@ -241,7 +241,7 @@ func Index(DB *pg.DB) {
 		log.Println(err)
 	}
 
-	totalLockedCelo := float64(0) // To calculate LockedCeloPercentile
+	totalLockedCelo := uint64(0) // To calculate LockedCeloPercentile
 
 	for _, validatorGroup := range details.CeloValidatorGroups {
 
@@ -307,7 +307,7 @@ func Index(DB *pg.DB) {
 
 		} // Finish indexing Validators under the ValidatorGroup
 
-		lockedCelo := divideBy1E18(validatorGroup.Account.Group.LockedGold)
+		lockedCelo := float64(divideBy1E18(validatorGroup.Account.Group.LockedGold))
 		groupShare := divideBy1E24(validatorGroup.Account.Group.Commission)
 		votes := uint64(divideBy1E18(validatorGroup.Account.Group.Votes))
 		// votingCap = votesRecieved + availableVotes
@@ -351,7 +351,7 @@ func Index(DB *pg.DB) {
 		vgFromDB.AvailableVotes = vgStats.VotingCap - vgStats.Votes
 		vgFromDB.RecievedVotes = vgStats.Votes
 		vgFromDB.CurrentlyElected = isVGCurrentlyElected
-		vgFromDB.LockedCelo = vgStats.LockedCelo
+		vgFromDB.LockedCelo = uint64(vgStats.LockedCelo)
 		vgFromDB.SlashingPenaltyScore = slashingScoreFloat
 		vgFromDB.GroupScore = groupScore
 		vgFromDB.AttestationScore = groupAttestationScore
@@ -386,5 +386,16 @@ func Index(DB *pg.DB) {
 		}
 
 	}
+
+	/*
+		Next steps ->
+			1. Dry run of the implementation so far to find fallacies
+			2. Write functions for calculating ->
+				A. LockedCeloPercentile
+				B. Performance Score
+				C. Trust Score
+			3. Loop through all the VGsFromDB, and update the above metrics.
+			4. Proper error handling for the code
+	*/
 
 }
