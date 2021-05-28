@@ -253,11 +253,11 @@ func Index(DB *pg.DB) {
 				break
 			}
 		}
-		log.Println(vgFromDB.Name)
+		log.Printf("%s(%s)\n", vgFromDB.Name, vgFromDB.Address)
 
-		isVGCurrentlyElected := false             // Used for updating VG
-		validatorScores := make([]float64, 0, 10) // Used for calculating `GroupScore` for the VG
-		attestationScores := make([]int, 0, 10)   // Used for calculating `AttestationPercentage` for the VG
+		isVGCurrentlyElected := false               // Used for updating VG
+		validatorScores := make([]float64, 0, 10)   // Used for calculating `GroupScore` for the VG
+		attestationScores := make([]float64, 0, 10) // Used for calculating `AttestationPercentage` for the VG
 
 		// Loop through the Validators under the ValidatorGroup
 		for _, validator := range validatorGroup.Affiliates.Edges {
@@ -298,7 +298,9 @@ func Index(DB *pg.DB) {
 			}
 
 			// Used for calculating `AttestationPercentage` for the VG.
-			attestationScores = append(attestationScores, (vStats.AttestationsRequested / vStats.AttenstationsFulfilled))
+			if vStats.AttenstationsFulfilled > 0 {
+				attestationScores = append(attestationScores, float64(vStats.AttenstationsFulfilled)/float64(vStats.AttestationsRequested))
+			}
 
 			_, err = DB.Model(vFromDB).WherePK().Update()
 			if err != nil {
@@ -313,24 +315,34 @@ func Index(DB *pg.DB) {
 		// votingCap = votesRecieved + availableVotes
 		votingCap := votes + uint64(divideBy1E18(validatorGroup.Account.Group.ReceivableVotes))
 		slashingScore, _ := getVGSlashingMultiplier(httpClient, validatorGroup.Account.Address)
-		slashingScoreFloat := divideBy1E24(slashingScore)
+		slashingScoreFloat := float64(0)
+		if slashingScore != "" {
+			slashingScoreFloat = divideBy1E24(slashingScore)
+		}
 
 		// groupScore is the average of all elected validators under the VG
 		groupScore := float64(0)
-		for _, vScore := range validatorScores {
-			groupScore += vScore
+		if len(validatorScores) > 0 {
+			for _, vScore := range validatorScores {
+				groupScore += vScore
+			}
+			groupScore /= float64(len(validatorScores))
 		}
-		groupScore /= float64(len(validatorScores))
 		// estimatedAPY = targetAPY * groupScore
-		estimatedAPY := new(big.Float).Quo(targetYieldFloat, big.NewFloat(groupScore))
-		estimatedAPYFloat, _ := estimatedAPY.Float64()
+		estimatedAPYFloat := float64(0)
+		if groupScore > 0 {
+			estimatedAPY := new(big.Float).Mul(targetYieldFloat, big.NewFloat(groupScore))
+			estimatedAPYFloat, _ = estimatedAPY.Float64()
+		}
 
 		// groupAttestationScore(`AttestationPercentage`) is the average of the attestation scores(attestations requested / attestations fulfilled) of each Validator
 		groupAttestationScore := float64(0)
-		for _, attestationScore := range attestationScores {
-			groupAttestationScore += float64(attestationScore)
+		if len(attestationScores) > 0 {
+			for _, attestationScore := range attestationScores {
+				groupAttestationScore += attestationScore
+			}
+			groupAttestationScore /= float64(len(attestationScores))
 		}
-		groupAttestationScore /= float64(len(attestationScores))
 
 		// Current round of VGStats for the VG
 		vgStats := &model.ValidatorGroupStats{
@@ -374,7 +386,7 @@ func Index(DB *pg.DB) {
 		totalLockedCelo += vgFromDB.LockedCelo
 
 		// Insert VGStats for the current round.
-		_, err := DB.Model(vgStats).Insert()
+		_, err = DB.Model(vgStats).Insert()
 		if err != nil {
 			log.Println(err)
 		}
