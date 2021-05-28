@@ -192,20 +192,28 @@ func Index(DB *pg.DB) {
 
 	// Index the current epoch.
 	log.Println("Index the current epoch")
+
 	latestEpoch := new(model.Epoch)
-	err = DB.Model(&latestEpoch).Where("number = ?", currentEpoch).Limit(1).Select()
-	if err.Error() == NoResultError {
-		latestEpoch := model.Epoch{
-			StartBlock: ((currentEpoch - 1) * 17280) + 1,
-			EndBlock:   currentEpoch * 17280,
-			Number:     currentEpoch,
-		}
-		_, err = DB.Model(&latestEpoch).Insert()
-		if err != nil {
-			log.Fatal(err)
-			return
+	log.Println(currentEpoch)
+	// err = DB.Model(latestEpoch).Order("created_at desc").Limit(1).Select()
+	err = DB.Model(latestEpoch).Where("number = ?", currentEpoch).Limit(1).Select()
+	log.Println("Epoch number:", latestEpoch.Number)
+	if err != nil {
+		if err.Error() == NoResultError {
+			log.Println("Couldn't find Epoch. Creating a new one.")
+			latestEpoch = &model.Epoch{
+				StartBlock: ((currentEpoch - 1) * 17280) + 1,
+				EndBlock:   currentEpoch * 17280,
+				Number:     currentEpoch,
+			}
+			_, err = DB.Model(latestEpoch).Insert()
+			if err != nil {
+				log.Fatal(err)
+				return
+			}
 		}
 	}
+	log.Println(latestEpoch)
 
 	/*
 		1. Find Target APY ✅
@@ -282,6 +290,7 @@ func Index(DB *pg.DB) {
 				ValidatorId:            vFromDB.ID,
 			}
 			_, err := DB.Model(vStats).Insert()
+
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -353,7 +362,6 @@ func Index(DB *pg.DB) {
 			VotingCap:             votingCap,
 			AttestationPercentage: groupAttestationScore,
 			SlashingScore:         slashingScoreFloat,
-			Epoch:                 lastIndexedEpoch,
 			EpochId:               latestEpoch.ID,
 			ValidatorGroupId:      vgFromDB.ID,
 			EstimatedAPY:          estimatedAPYFloat,
@@ -371,6 +379,9 @@ func Index(DB *pg.DB) {
 
 		// If VG is currently elected, increment VG.EpochsServed
 		if isVGCurrentlyElected {
+			latestVGStats := new(model.ValidatorGroupStats)
+			_ = DB.Model(latestVGStats).Where("validator_group_id = ?", vgFromDB.ID).Where("epoch_id = ?", latestEpoch.ID).Relation("Epoch").Order("created_at desc").Select()
+			log.Println(latestVGStats)
 			vgFromDB.EpochsServed++
 		}
 
