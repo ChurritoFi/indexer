@@ -193,13 +193,13 @@ func Index(DB *pg.DB) {
 	// Index the current epoch.
 	log.Println("Index the current epoch")
 
+	isCurrentEpochIndexedBefore := true
 	latestEpoch := new(model.Epoch)
-	log.Println(currentEpoch)
-	// err = DB.Model(latestEpoch).Order("created_at desc").Limit(1).Select()
 	err = DB.Model(latestEpoch).Where("number = ?", currentEpoch).Limit(1).Select()
 	log.Println("Epoch number:", latestEpoch.Number)
 	if err != nil {
 		if err.Error() == NoResultError {
+			isCurrentEpochIndexedBefore = false
 			log.Println("Couldn't find Epoch. Creating a new one.")
 			latestEpoch = &model.Epoch{
 				StartBlock: ((currentEpoch - 1) * 17280) + 1,
@@ -282,12 +282,12 @@ func Index(DB *pg.DB) {
 
 			// Current round of stats for the Validator
 			vStats := &model.ValidatorStats{
-				AttestationsRequested:  validator.Node.AttestationsRequested,
-				AttenstationsFulfilled: validator.Node.AttestationsFulfilled,
-				LastElected:            validator.Node.LastElected,
-				Score:                  vScore,
-				EpochId:                lastIndexedEpoch.ID,
-				ValidatorId:            vFromDB.ID,
+				AttestationsRequested: validator.Node.AttestationsRequested,
+				AttestationsFulfilled: validator.Node.AttestationsFulfilled,
+				LastElected:           validator.Node.LastElected,
+				Score:                 vScore,
+				EpochId:               lastIndexedEpoch.ID,
+				ValidatorId:           vFromDB.ID,
 			}
 			_, err := DB.Model(vStats).Insert()
 
@@ -307,8 +307,8 @@ func Index(DB *pg.DB) {
 			}
 
 			// Used for calculating `AttestationPercentage` for the VG.
-			if vStats.AttenstationsFulfilled > 0 {
-				attestationScores = append(attestationScores, float64(vStats.AttenstationsFulfilled)/float64(vStats.AttestationsRequested))
+			if vStats.AttestationsFulfilled > 0 {
+				attestationScores = append(attestationScores, float64(vStats.AttestationsFulfilled)/float64(vStats.AttestationsRequested))
 			}
 
 			_, err = DB.Model(vFromDB).WherePK().Update()
@@ -318,7 +318,7 @@ func Index(DB *pg.DB) {
 
 		} // Finish indexing Validators under the ValidatorGroup
 
-		lockedCelo := float64(divideBy1E18(validatorGroup.Account.Group.LockedGold))
+		lockedCelo := uint64(divideBy1E18(validatorGroup.Account.Group.LockedGold))
 		groupShare := divideBy1E24(validatorGroup.Account.Group.Commission)
 		votes := uint64(divideBy1E18(validatorGroup.Account.Group.Votes))
 		// votingCap = votesRecieved + availableVotes
@@ -356,7 +356,6 @@ func Index(DB *pg.DB) {
 		// Current round of VGStats for the VG
 		vgStats := &model.ValidatorGroupStats{
 			LockedCelo:            lockedCelo,
-			LockedCeloPercentile:  lockedCelo,
 			GroupShare:            groupShare,
 			Votes:                 votes,
 			VotingCap:             votingCap,
@@ -378,10 +377,7 @@ func Index(DB *pg.DB) {
 		vgFromDB.EstimatedAPY = estimatedAPYFloat
 
 		// If VG is currently elected, increment VG.EpochsServed
-		if isVGCurrentlyElected {
-			latestVGStats := new(model.ValidatorGroupStats)
-			_ = DB.Model(latestVGStats).Where("validator_group_id = ?", vgFromDB.ID).Where("epoch_id = ?", latestEpoch.ID).Relation("Epoch").Order("created_at desc").Select()
-			log.Println(latestVGStats)
+		if isVGCurrentlyElected && !isCurrentEpochIndexedBefore {
 			vgFromDB.EpochsServed++
 		}
 

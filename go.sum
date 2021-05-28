@@ -27,6 +27,8 @@ github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526180158-730a0b
 github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526180158-730a0be8f9b4/go.mod h1:F5aYHPEbWGEaW1s35J9Pl6q5U/mhpRloLWffgnYjkgE=
 github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526192944-b6b4fe2fbeab h1:snTCA8Ct2YRaOxAUwUKQvyMujZRmmQ8GOGLJQvBIEok=
 github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526192944-b6b4fe2fbeab/go.mod h1:F5aYHPEbWGEaW1s35J9Pl6q5U/mhpRloLWffgnYjkgE=
+github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210528145956-059a7f35e22c h1:krD963p4jqoJc8Ywo+4zwBENE5jTiuzxXowcHmnxkXM=
+github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210528145956-059a7f35e22c/go.mod h1:F5aYHPEbWGEaW1s35J9Pl6q5U/mhpRloLWffgnYjkgE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
@@ -154,6 +156,8 @@ github.com/vmihailenco/msgpack/v5 v5.3.1 h1:0i85a4dsZh8mC//wmyyTEzidDLPQfQAxZIOL
 github.com/vmihailenco/msgpack/v5 v5.3.1/go.mod h1:7xyJ9e+0+9SaZT0Wt1RGleJXzli6Q/V5KbhBonMG9jc=
 github.com/vmihailenco/msgpack/v5 v5.3.2 h1:MsXyN2rqdM8NM0lLiIpTn610e8Zcoj8ZuHxsMOi9qhI=
 github.com/vmihailenco/msgpack/v5 v5.3.2/go.mod h1:7xyJ9e+0+9SaZT0Wt1RGleJXzli6Q/V5KbhBonMG9jc=
+github.com/vmihailenco/msgpack/v5 v5.3.4 h1:qMKAwOV+meBw2Y8k9cVwAy7qErtYCwBzZ2ellBfvnqc=
+github.com/vmihailenco/msgpack/v5 v5.3.4/go.mod h1:7xyJ9e+0+9SaZT0Wt1RGleJXzli6Q/V5KbhBonMG9jc=
 github.com/vmihailenco/tagparser v0.1.1/go.mod h1:OeAg3pn3UbLjkWt+rN9oFYB6u/cQgqMEUPoW2WPyhdI=
 github.com/vmihailenco/tagparser v0.1.2 h1:gnjoVuB/kljJ5wICEEOpx98oXMWPLj22G67Vbd1qPqc=
 github.com/vmihailenco/tagparser v0.1.2/go.mod h1:OeAg3pn3UbLjkWt+rN9oFYB6u/cQgqMEUPoW2WPyhdI=
