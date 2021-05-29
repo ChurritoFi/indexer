@@ -408,7 +408,7 @@ func Index(DB *pg.DB) {
 
 	/*
 		Next steps ->
-			1. Dry run of the implementation so far to find fallacies
+			1. Dry run of the implementation so far to find fallacies ✅
 			2. Write functions for calculating ->
 				A. LockedCeloPercentile
 				B. Performance Score

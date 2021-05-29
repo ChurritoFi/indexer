@@ -40,3 +40,18 @@ func getEpochFromBlock(block int) uint64 {
 		return epochNumber + 1
 	}
 }
+
+func calculateCeloPerValidator(celo uint64, num_validators uint) float64 {
+	if celo == 0 || num_validators == 0 {
+		return 0
+	}
+	return float64(celo) / float64(num_validators)
+}
+
+func findMax(values []float64) float64 {
+	max := float64(math.Inf(-1))
+	for _, value := range values {
+		max = math.Max(max, value)
+	}
+	return max
+}
