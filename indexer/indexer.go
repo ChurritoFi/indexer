@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"log"
+	"math"
 	"math/big"
 	"net/http"
 	"time"
@@ -396,6 +397,7 @@ func Index(DB *pg.DB) {
 		_, err = DB.Model(vgStats).Insert()
 		if err != nil {
 			log.Println(err)
+
 		}
 
 		// Update vgFromDB in the DB.
@@ -416,5 +418,25 @@ func Index(DB *pg.DB) {
 			3. Loop through all the VGsFromDB, and update the above metrics.
 			4. Proper error handling for the code
 	*/
+
+	// Calculate LockedCeloPercentile
+	lockedCeloByNumValidatorsPerVG := make(map[string]float64)
+	maxLockedCeloByNumValidators := math.Inf(-1)
+	for _, vg := range validatorGroupsFromDB {
+		val := calculateCeloPerValidator(vg.LockedCelo, uint(len(vg.Validators)))
+		lockedCeloByNumValidatorsPerVG[vg.Address] = val
+		maxLockedCeloByNumValidators = math.Max(val, maxLockedCeloByNumValidators)
+	}
+	for _, vg := range validatorGroupsFromDB {
+		VGLockedCeloByNumValidators, ok := lockedCeloByNumValidatorsPerVG[vg.Address]
+		if !ok {
+			continue
+		}
+		vg.LockedCeloPercentile = VGLockedCeloByNumValidators / maxLockedCeloByNumValidators
+		_, err := DB.Model(vg).WherePK().Update()
+		if err != nil {
+			log.Fatal("Couldn't update VG.")
+		}
+	}
 
 }
