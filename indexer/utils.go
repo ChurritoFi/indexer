@@ -76,3 +76,51 @@ func calculateTransparencyScore(vg *model.ValidatorGroup) float64 {
 
 	return transparencyScore
 }
+
+func calculatePerformanceScore(vg *model.ValidatorGroup, totalEpochs float64) float64 {
+	/*
+		SlashingMultiplier(30%)
+		Group Score(30%)
+		EpochsServedHistory(10%)
+		EpochsServedCapacity(10%)
+		LockedceloPercentile(2%)
+		Number of Elected Validators(2%) -> 0.04 * Number of Elected Validators
+		Percentage of Validators Elected(2%) -> (elected validators / total validators) * 0.02
+		---
+		Attestation Score(2%)
+
+	*/
+	thirtyPercent := 0.3
+	tenPercent := 0.1
+	sixPercent := 0.06
+	twoPercent := 0.02
+	ZeroPointFourPercent := twoPercent / 5.0
+
+	performanceScore := float64(0)
+	performanceScore += (vg.SlashingPenaltyScore * thirtyPercent)
+	performanceScore += (vg.GroupScore * thirtyPercent)
+
+	epochsServedHistoryPercent := float64(vg.EpochsServed) / float64(vg.EpochRegisteredAt)
+	epochsServedHistoryCapacity := math.Max(float64(vg.EpochsServed)/totalEpochs, float64(1))
+
+	performanceScore += (epochsServedHistoryPercent * tenPercent)
+	performanceScore += (epochsServedHistoryCapacity * tenPercent)
+
+	performanceScore += (vg.LockedCeloPercentile * sixPercent)
+
+	numElectedValidators := 0
+	totalValidators := 0
+	for _, v := range vg.Validators {
+		if v.CurrentlyElected {
+			numElectedValidators++
+		}
+		totalValidators++
+	}
+
+	performanceScore += ((float64(numElectedValidators) / float64(totalValidators)) * sixPercent)
+	performanceScore += (vg.AttestationScore * sixPercent)
+
+	performanceScore += (float64(numElectedValidators) * ZeroPointFourPercent)
+
+	return performanceScore
+}
