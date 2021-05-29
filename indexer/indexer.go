@@ -431,6 +431,10 @@ func Index(DB *pg.DB) {
 			continue
 		}
 		vg.LockedCeloPercentile = VGLockedCeloByNumValidators / maxLockedCeloByNumValidators
+
+		vgPerformanceScore := calculatePerformanceScore(vg, float64(currentEpoch))
+		vg.PerformanceScore = vgPerformanceScore
+
 		_, err := DB.Model(vg).WherePK().Update()
 		if err != nil {
 			log.Fatal("Couldn't update VG.")
