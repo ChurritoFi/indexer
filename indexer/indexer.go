@@ -317,6 +317,19 @@ func Index(DB *pg.DB) {
 
 		} // Finish indexing Validators under the ValidatorGroup
 
+		// If VG is currently elected, increment VG.EpochsServed
+		if isVGCurrentlyElected && !isCurrentEpochIndexedBefore {
+			vgFromDB.EpochsServed++
+		}
+
+		// Loop through the claims, set VG.WebsiteURL if claim is of type "domain"
+		for _, claim := range validatorGroup.Account.Claims.Edges {
+			if claim.Node.Type == "domain" {
+				vgFromDB.WebsiteURL = claim.Node.Element
+				vgFromDB.VerifiedDNS = claim.Node.Verified
+			}
+		}
+
 		lockedCelo := uint64(divideBy1E18(validatorGroup.Account.Group.LockedGold))
 		groupShare := divideBy1E24(validatorGroup.Account.Group.Commission)
 		votes := uint64(divideBy1E18(validatorGroup.Account.Group.Votes))
@@ -352,6 +365,8 @@ func Index(DB *pg.DB) {
 			groupAttestationScore /= float64(len(attestationScores))
 		}
 
+		groupTransparencyScore := calculateTransparencyScore(vgFromDB)
+
 		// Current round of VGStats for the VG
 		vgStats := &model.ValidatorGroupStats{
 			LockedCelo:            lockedCelo,
@@ -374,19 +389,7 @@ func Index(DB *pg.DB) {
 		vgFromDB.GroupScore = groupScore
 		vgFromDB.AttestationScore = groupAttestationScore
 		vgFromDB.EstimatedAPY = estimatedAPYFloat
-
-		// If VG is currently elected, increment VG.EpochsServed
-		if isVGCurrentlyElected && !isCurrentEpochIndexedBefore {
-			vgFromDB.EpochsServed++
-		}
-
-		// Loop through the claims, set VG.WebsiteURL if claim is of type "domain"
-		for _, claim := range validatorGroup.Account.Claims.Edges {
-			if claim.Node.Type == "domain" {
-				vgFromDB.WebsiteURL = claim.Node.Element
-				vgFromDB.VerifiedDNS = claim.Node.Verified
-			}
-		}
+		vgFromDB.TransparencyScore = groupTransparencyScore
 
 		// Insert VGStats for the current round.
 		_, err = DB.Model(vgStats).Insert()
@@ -407,7 +410,7 @@ func Index(DB *pg.DB) {
 		Next steps ->
 			1. Dry run of the implementation so far to find fallacies ✅
 			2. Write functions for calculating ->
-				A. LockedCeloPercentile
+				A. LockedCeloPercentile ✅
 				B. Performance Score
 				C. Trust Score
 			3. Loop through all the VGsFromDB, and update the above metrics.
