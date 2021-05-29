@@ -16,6 +16,8 @@ import (
 func Index(DB *pg.DB) {
 
 	log.Println("Start indexing...")
+
+	// Clients used to fetch data from APIs.
 	httpClient := &http.Client{Timeout: 30 * time.Second}
 	gqlClient := graphql.NewClient("https://explorer.celo.org/graphiql")
 
@@ -23,7 +25,7 @@ func Index(DB *pg.DB) {
 	vgData, err := getValidatorGroupsAndValidatorsBasicData(gqlClient)
 	if err != nil {
 		log.Println("Couldn't fetch data.")
-		log.Println(err.Error())
+		log.Println(err)
 	} else {
 		log.Println("Fetched all VGs")
 	}
@@ -86,7 +88,7 @@ func Index(DB *pg.DB) {
 			}
 		}
 	} // Finished indexing new ValidatorGroups, and Validators.
-	log.Println("Finished indexing VGs and Vs.")
+	log.Println("Finished looping through VGs and Vs.")
 
 	var epochToIndexFrom uint64
 	lastIndexedEpoch, err := findLastIndexedEpoch(DB)
@@ -105,13 +107,11 @@ func Index(DB *pg.DB) {
 	currentEpoch, err := findCurrentEpoch(httpClient)
 	if err != nil {
 		log.Fatal("Error fetching current epoch.")
-		return
 	}
 	log.Println("Current epoch:", currentEpoch)
 
 	// Index prev epochs if epochToIndexFrom != currentEpoch
 	if epochToIndexFrom != currentEpoch {
-
 		var validatorGroupsFromDB []*model.ValidatorGroup
 		if err := DB.Model(&validatorGroupsFromDB).Select(); err != nil {
 			log.Fatal(err)
@@ -152,6 +152,7 @@ func Index(DB *pg.DB) {
 				return
 			}
 
+			// Aggregate the VGs that were elected in this Epoch.
 			for _, v := range electedValidatorsInEpoch.CeloElectedValidators {
 				if v.CeloAccount.Validator.GroupInfo.Address != "" {
 					vgInEpoch[v.CeloAccount.Validator.GroupInfo.Address] = true
@@ -186,7 +187,7 @@ func Index(DB *pg.DB) {
 			}
 
 			// Small pause to not overload the API we're using to fetch the ElectedValidators
-			time.Sleep(2 * time.Second)
+			time.Sleep(3 * time.Second)
 		}
 
 	}
@@ -194,19 +195,25 @@ func Index(DB *pg.DB) {
 	// Index the current epoch.
 	log.Println("Index the current epoch")
 
+	// `isCurrentEpochIndexedBefore` used to check whether we need to increment `EpochsServed` for the VG.
+	// Intent is to only increment `EpochsServed` for the VG if it's the first time we're indexing the epoch.
 	isCurrentEpochIndexedBefore := true
+
 	latestEpoch := new(model.Epoch)
+	// Find the model.Epoch from DB for the current epoch.
 	err = DB.Model(latestEpoch).Where("number = ?", currentEpoch).Limit(1).Select()
 	log.Println("Epoch number:", latestEpoch.Number)
+
 	if err != nil {
 		if err.Error() == NoResultError {
+			// If current epoch isn't present in the DB, insert it into the DB.
 			isCurrentEpochIndexedBefore = false
-			log.Println("Couldn't find Epoch. Creating a new one.")
 			latestEpoch = &model.Epoch{
 				StartBlock: ((currentEpoch - 1) * 17280) + 1,
 				EndBlock:   currentEpoch * 17280,
 				Number:     currentEpoch,
 			}
+
 			_, err = DB.Model(latestEpoch).Insert()
 			if err != nil {
 				log.Fatal(err)
@@ -214,27 +221,8 @@ func Index(DB *pg.DB) {
 			}
 		}
 	}
-	log.Println(latestEpoch)
 
-	/*
-		1. Find Target APY ✅
-		2. Loop through all the ValidatorGroup details
-			A. For all the Validators
-				a. Populate ValidatorStats ✅
-				b. Polulate Validator metrics ✅
-				c. Save and update the models. ✅
-			B. For the ValidatorGroup
-				a. Find Estimated APY for the VG ✅
-				b. Find Attestation Percentage for the VG ✅
-				c. Populate ValidatorGroupStats ✅
-				d. Update VG fields ✅
-				e. Update claims ✅
-		3. Loop through all the VGs from the DB
-			A. Calculate the `LockedCeloPercentile`
-			B. Calculate the `Performance Score`
-			C. Calculate the `Transparency Score`
-	*/
-
+	// target yield is the parameter set by the Celo network to adjust inflation schedule
 	targetYield, _ := getTargetAPY(httpClient)
 	targetYieldFloat := convertStringToBigFloat(targetYield)
 	log.Printf("%f target apy", targetYieldFloat)
@@ -244,12 +232,14 @@ func Index(DB *pg.DB) {
 		log.Fatal(err)
 	}
 
+	// Fetch all the VGs and Vs from the DB.
 	var validatorGroupsFromDB []*model.ValidatorGroup
 	err = DB.Model(&validatorGroupsFromDB).Relation("Validators").Select()
 	if err != nil {
 		log.Println(err)
 	}
 
+	// Loop through all the ValidatorGroups
 	for _, validatorGroup := range details.CeloValidatorGroups {
 
 		// Find the current vg from the validatorGroupsFromDB
@@ -266,7 +256,7 @@ func Index(DB *pg.DB) {
 		validatorScores := make([]float64, 0, 10)   // Used for calculating `GroupScore` for the VG
 		attestationScores := make([]float64, 0, 10) // Used for calculating `AttestationPercentage` for the VG
 
-		// Loop through the Validators under the ValidatorGroup
+		// Loop through the Validators in the ValidatorGroup
 		for _, validator := range validatorGroup.Affiliates.Edges {
 
 			// Find the current validator from DB
@@ -307,7 +297,7 @@ func Index(DB *pg.DB) {
 
 			// Used for calculating `AttestationPercentage` for the VG.
 			if vStats.AttestationsFulfilled > 0 {
-				attestationScores = append(attestationScores, float64(vStats.AttestationsFulfilled)/float64(vStats.AttestationsRequested))
+				attestationScores = append(attestationScores, (float64(vStats.AttestationsFulfilled) / float64(vStats.AttestationsRequested)))
 			}
 
 			_, err = DB.Model(vFromDB).WherePK().Update()
@@ -395,7 +385,6 @@ func Index(DB *pg.DB) {
 		_, err = DB.Model(vgStats).Insert()
 		if err != nil {
 			log.Println(err)
-
 		}
 
 		// Update vgFromDB in the DB.
@@ -406,30 +395,23 @@ func Index(DB *pg.DB) {
 
 	}
 
-	/*
-		Next steps ->
-			1. Dry run of the implementation so far to find fallacies ✅
-			2. Write functions for calculating ->
-				A. LockedCeloPercentile ✅
-				B. Performance Score
-				C. Trust Score
-			3. Loop through all the VGsFromDB, and update the above metrics.
-			4. Proper error handling for the code
-	*/
-
-	// Calculate LockedCeloPercentile
+	// Calculate LockedCelo / NumValidators per VG
 	lockedCeloByNumValidatorsPerVG := make(map[string]float64)
 	maxLockedCeloByNumValidators := math.Inf(-1)
+
 	for _, vg := range validatorGroupsFromDB {
 		val := calculateCeloPerValidator(vg.LockedCelo, uint(len(vg.Validators)))
 		lockedCeloByNumValidatorsPerVG[vg.Address] = val
 		maxLockedCeloByNumValidators = math.Max(val, maxLockedCeloByNumValidators)
 	}
+
+	// Calculate (LockedCelo/NumValidators)Percentile and Performance Score for each VG.
 	for _, vg := range validatorGroupsFromDB {
 		VGLockedCeloByNumValidators, ok := lockedCeloByNumValidatorsPerVG[vg.Address]
 		if !ok {
 			continue
 		}
+
 		vg.LockedCeloPercentile = VGLockedCeloByNumValidators / maxLockedCeloByNumValidators
 
 		vgPerformanceScore := calculatePerformanceScore(vg, float64(currentEpoch))
