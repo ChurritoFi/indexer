@@ -250,8 +250,6 @@ func Index(DB *pg.DB) {
 		log.Println(err)
 	}
 
-	totalLockedCelo := uint64(0) // To calculate LockedCeloPercentile
-
 	for _, validatorGroup := range details.CeloValidatorGroups {
 
 		// Find the current vg from the validatorGroupsFromDB
@@ -389,9 +387,6 @@ func Index(DB *pg.DB) {
 				vgFromDB.VerifiedDNS = claim.Node.Verified
 			}
 		}
-
-		// Used for calculating `LockedCeloPercentile` later.
-		totalLockedCelo += vgFromDB.LockedCelo
 
 		// Insert VGStats for the current round.
 		_, err = DB.Model(vgStats).Insert()
