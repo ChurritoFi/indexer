@@ -37,8 +37,8 @@ func main() {
 	if err := DB.Ping(ctx); err != nil {
 		log.Println(err)
 	}
-	// dropAllTables(DB)
-	// createAllTables(DB)
+	dropAllTables(DB)
+	createAllTables(DB)
 
 	indexer.Index(DB)
 }
