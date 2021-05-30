@@ -8,7 +8,6 @@ import (
 	"github.com/buidl-labs/celo-indexer/indexer"
 	"github.com/buidl-labs/celo-voting-validator-backend/graph/database"
 	"github.com/buidl-labs/celo-voting-validator-backend/graph/model"
-	"github.com/go-pg/pg/extra/pgdebug"
 	"github.com/go-pg/pg/v10"
 	"github.com/go-pg/pg/v10/orm"
 	"github.com/joho/godotenv"
@@ -30,9 +29,9 @@ func main() {
 
 	defer DB.Close()
 
-	DB.AddQueryHook(pgdebug.DebugHook{
-		Verbose: true,
-	})
+	// DB.AddQueryHook(pgdebug.DebugHook{
+	// 	Verbose: true,
+	// })
 
 	ctx := context.Background()
 	if err := DB.Ping(ctx); err != nil {
