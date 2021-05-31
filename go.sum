@@ -29,6 +29,8 @@ github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526192944-b6b4fe
 github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210526192944-b6b4fe2fbeab/go.mod h1:F5aYHPEbWGEaW1s35J9Pl6q5U/mhpRloLWffgnYjkgE=
 github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210528145956-059a7f35e22c h1:krD963p4jqoJc8Ywo+4zwBENE5jTiuzxXowcHmnxkXM=
 github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210528145956-059a7f35e22c/go.mod h1:F5aYHPEbWGEaW1s35J9Pl6q5U/mhpRloLWffgnYjkgE=
+github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210531120614-c134fec4e94b h1:/zSdvQRRoz1FVv40PT46K5gF2jsFQ1Iu1/PkijpNHBs=
+github.com/buidl-labs/celo-voting-validator-backend v0.0.0-20210531120614-c134fec4e94b/go.mod h1:F5aYHPEbWGEaW1s35J9Pl6q5U/mhpRloLWffgnYjkgE=
 github.com/census-instrumentation/opencensus-proto v0.2.1/go.mod h1:f6KPmirojxKA12rnyqOA5BBL4O983OfeGPqjHWSTneU=
 github.com/client9/misspell v0.3.4/go.mod h1:qj6jICC3Q7zFZvVWo7KLAzC3yx5G7kyvSDkc90ppPyw=
 github.com/cpuguy83/go-md2man/v2 v2.0.0-20190314233015-f79a8a8ca69d/go.mod h1:maD7wRr/U5Z6m/iR4s+kqSMx2CaBsrgA7czyZG/E6dU=
@@ -233,6 +235,8 @@ golang.org/x/sys v0.0.0-20210514084401-e8d321eab015 h1:hZR0X1kPW+nwyJ9xRxqZk1vx5
 golang.org/x/sys v0.0.0-20210514084401-e8d321eab015/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea h1:+WiDlPBBaO+h9vPNZi8uJ3k4BkKQB7Iow3aqwHVA5hI=
 golang.org/x/sys v0.0.0-20210525143221-35b2ab0089ea/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20210531080801-fdfd190a6549 h1:OL5GcZ2XPkte3dpfuFQ9o884vrE3BZQhajdntNMruv4=
+golang.org/x/sys v0.0.0-20210531080801-fdfd190a6549/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.3.0/go.mod h1:NqM8EUOU14njkJ3fqMW+pc6Ldnwhi/IjpwHt7yyuwOQ=
 golang.org/x/text v0.3.2/go.mod h1:bEr9sfX3Q8Zfm5fL9x+3itogRgK3+ptLWKqgva+5dAk=

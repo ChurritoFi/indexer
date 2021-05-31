@@ -380,6 +380,7 @@ func Index(DB *pg.DB) {
 		vgFromDB.AttestationScore = groupAttestationScore
 		vgFromDB.EstimatedAPY = estimatedAPYFloat
 		vgFromDB.TransparencyScore = groupTransparencyScore
+		vgFromDB.GroupShare = groupShare
 
 		// Insert VGStats for the current round.
 		_, err = DB.Model(vgStats).Insert()
