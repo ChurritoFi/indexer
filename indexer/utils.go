@@ -100,7 +100,13 @@ func calculatePerformanceScore(vg *model.ValidatorGroup, totalEpochs float64) fl
 	performanceScore += (vg.GroupScore * thirtyPercent)
 
 	epochsServedHistoryPercent := float64(vg.EpochsServed) / float64(totalEpochs)
-	epochsServedHistoryCapacity := math.Min((float64(vg.EpochsServed) / (totalEpochs - float64(vg.EpochRegisteredAt))), float64(1))
+	epochsAvailable := totalEpochs - float64(vg.EpochRegisteredAt)
+	var epochsServedHistoryCapacity float64
+	if epochsAvailable == 0 {
+		epochsServedHistoryCapacity = 0.0
+	} else {
+		epochsServedHistoryCapacity = math.Min((float64(vg.EpochsServed) / epochsAvailable), float64(1))
+	}
 
 	performanceScore += (epochsServedHistoryPercent * tenPercent)
 	performanceScore += (epochsServedHistoryCapacity * tenPercent)

@@ -41,6 +41,7 @@ func main() {
 	// createAllTables(DB)
 
 	indexer.Index(DB)
+
 }
 
 func dropAllTables(DB *pg.DB) {
