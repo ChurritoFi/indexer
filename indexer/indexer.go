@@ -324,8 +324,8 @@ func Index(DB *pg.DB) {
 		lockedCelo := uint64(divideBy1E18(validatorGroup.Account.Group.LockedGold))
 		groupShare := divideBy1E24(validatorGroup.Account.Group.Commission)
 		votes := uint64(divideBy1E18(validatorGroup.Account.Group.Votes))
-		// votingCap = votesRecieved + availableVotes
-		votingCap := votes + uint64(divideBy1E18(validatorGroup.Account.Group.ReceivableVotes))
+		votingCap := uint64(divideBy1E18(validatorGroup.Account.Group.ReceivableVotes))
+
 		slashingScore, _ := getVGSlashingMultiplier(httpClient, validatorGroup.Account.Address)
 		slashingScoreFloat := float64(0)
 		if slashingScore != "" {
@@ -370,7 +370,7 @@ func Index(DB *pg.DB) {
 			ValidatorGroupId:      vgFromDB.ID,
 			EstimatedAPY:          estimatedAPYFloat,
 		}
-
+		log.Println(vgStats.VotingCap)
 		// Update the current stats for the VG
 		vgFromDB.AvailableVotes = vgStats.VotingCap - vgStats.Votes
 		vgFromDB.RecievedVotes = vgStats.Votes
