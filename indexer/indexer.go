@@ -256,6 +256,7 @@ func Index(DB *pg.DB) {
 		validatorScores := make([]float64, 0, 10)   // Used for calculating `GroupScore` for the VG
 		attestationScores := make([]float64, 0, 10) // Used for calculating `AttestationPercentage` for the VG
 
+		vgFromDB.Name = validatorGroup.Account.Name
 		// Loop through the Validators in the ValidatorGroup
 		for _, validator := range validatorGroup.Affiliates.Edges {
 
