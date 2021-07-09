@@ -341,11 +341,14 @@ func Index(DB *pg.DB) {
 			groupScore /= float64(len(validatorScores))
 		}
 		// estimatedAPY = targetAPY * groupScore
+		log.Println(slashingScoreFloat)
 		estimatedAPYFloat := float64(0)
 		if groupScore > 0 {
 			estimatedAPY := new(big.Float).Mul(targetYieldFloat, big.NewFloat(groupScore))
 			estimatedAPYFloat, _ = estimatedAPY.Float64()
+			estimatedAPYFloat *= slashingScoreFloat
 		}
+		log.Print(estimatedAPYFloat)
 
 		// groupAttestationScore(`AttestationPercentage`) is the average of the attestation scores(attestations requested / attestations fulfilled) of each Validator
 		groupAttestationScore := float64(0)
@@ -370,7 +373,7 @@ func Index(DB *pg.DB) {
 			ValidatorGroupId:      vgFromDB.ID,
 			EstimatedAPY:          estimatedAPYFloat,
 		}
-		log.Println(vgStats.VotingCap)
+
 		// Update the current stats for the VG
 		vgFromDB.AvailableVotes = vgStats.VotingCap - vgStats.Votes
 		vgFromDB.RecievedVotes = vgStats.Votes
