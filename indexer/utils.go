@@ -112,7 +112,7 @@ func calculatePerformanceScore(vg *model.ValidatorGroup, totalEpochs float64) fl
 	performanceScore += (epochsServedHistoryCapacity * tenPercent)
 
 	performanceScore += (vg.LockedCeloPercentile * sixPercent)
-
+	performanceScore += (vg.AttestationScore * sixPercent)
 	numElectedValidators := 0
 	totalValidators := 0
 	for _, v := range vg.Validators {
@@ -124,7 +124,6 @@ func calculatePerformanceScore(vg *model.ValidatorGroup, totalEpochs float64) fl
 	if totalValidators > 0 {
 		performanceScore += ((float64(numElectedValidators) / float64(totalValidators)) * sixPercent)
 	}
-	performanceScore += (vg.AttestationScore * sixPercent)
 
 	performanceScore += (float64(numElectedValidators) * ZeroPointFourPercent)
 
