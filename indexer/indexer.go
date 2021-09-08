@@ -91,7 +91,7 @@ func Index(DB *pg.DB) {
 	log.Println("Finished looping through VGs and Vs.")
 
 	var epochToIndexFrom uint64
-	lastIndexedEpoch, err := findLastIndexedEpoch(DB)
+	lastIndexedEpoch, _ := findLastIndexedEpoch(DB)
 
 	if err != nil {
 		// If no Epochs are present in DB, start from Epoch 1.
@@ -106,7 +106,8 @@ func Index(DB *pg.DB) {
 
 	currentEpoch, err := findCurrentEpoch(httpClient)
 	if err != nil {
-		log.Fatal("Error fetching current epoch.")
+		log.Println("Error fetching current epoch.")
+		return
 	}
 	log.Println("Current epoch:", currentEpoch)
 
@@ -138,7 +139,8 @@ func Index(DB *pg.DB) {
 			electedValidatorsInEpoch, err := getElectedValidatorsAtEpoch(gqlClient, epoch)
 			if err != nil {
 				log.Println("Error fetching elected validators.")
-				log.Fatal(err.Error())
+				log.Println(err.Error())
+				return
 			}
 
 			currEpoch := model.Epoch{
@@ -229,7 +231,8 @@ func Index(DB *pg.DB) {
 
 	details, err := getValidatorGroupsAndValidatorsDetails(gqlClient)
 	if err != nil {
-		log.Fatal(err)
+		log.Println(err)
+		return
 	}
 
 	// Fetch all the VGs and Vs from the DB.
