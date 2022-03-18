@@ -7,13 +7,19 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/machinebox/graphql"
 )
 
+func getDataServiceURL() string {
+	host := os.Getenv("DATA_SERVICE_HOST")
+	return fmt.Sprintf("https://%s.onrender.com", host)
+}
+
 func findCurrentEpoch(client *http.Client) (uint64, error) {
-	resp, err := client.Get("https://celo-on-chain-data-service.onrender.com/current-epoch")
+	resp, err := client.Get(fmt.Sprintf("%s/current-epoch", getDataServiceURL()))
 	if err != nil {
 		return 0, err
 	}
@@ -25,7 +31,7 @@ func findCurrentEpoch(client *http.Client) (uint64, error) {
 }
 
 func getVGSlashingMultiplier(client *http.Client, address string) (string, error) {
-	resp, err := client.Get(fmt.Sprintf("https://celo-on-chain-data-service.onrender.com/downtime-score/%s", address))
+	resp, err := client.Get(fmt.Sprintf("%s/downtime-score/%s", getDataServiceURL(), address))
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +43,7 @@ func getVGSlashingMultiplier(client *http.Client, address string) (string, error
 }
 
 func getTargetAPY(client *http.Client) (string, error) {
-	resp, err := client.Get("https://celo-on-chain-data-service.onrender.com/target-apy")
+	resp, err := client.Get(fmt.Sprintf("%s/target-apy", getDataServiceURL()))
 	if err != nil {
 		return "", err
 	}
@@ -50,7 +56,7 @@ func getTargetAPY(client *http.Client) (string, error) {
 
 func getEpochVGRegistered(client *http.Client, address string) (epochVGRegistered, error) {
 	epochRegistered := new(epochVGRegistered)
-	resp, err := client.Get(fmt.Sprintf("https://celo-on-chain-data-service.onrender.com/epoch-vg-registered/%s", address))
+	resp, err := client.Get(fmt.Sprintf("%s/epoch-vg-registered/%s", getDataServiceURL(), address))
 	if err != nil {
 		return *epochRegistered, err
 	}
@@ -178,7 +184,7 @@ func getValidatorGroupsAndValidatorsDetails(client *graphql.Client) (celoValidat
 // func getElectedValidators(client *http.Client) ([]electedValidator, error) {
 // 	electedValidators := new(electedValidators)
 
-// 	resp, err := client.Get("https://celo-on-chain-data-service.onrender.com/elected-validators")
+// 	resp, err := client.Get(fmt.Sprintf("%s/elected-validators", getDataServiceURL()))
 // 	if err != nil {
 // 		return electedValidators.Validators, err
 // 	}

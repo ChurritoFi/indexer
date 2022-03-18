@@ -16,9 +16,12 @@ import (
 func main() {
 
 	if err := godotenv.Load(); err != nil {
-		log.Fatal("Error loading .env file")
+		log.Println("Error loading .env file")
 	}
 	DbURL := os.Getenv("DB_URL")
+	if DbURL == "" {
+		log.Fatal("Please provide a DB url.")
+	}
 
 	opts, err := pg.ParseURL(DbURL)
 	if err != nil {
