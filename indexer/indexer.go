@@ -91,12 +91,14 @@ func Index(DB *pg.DB) {
 	log.Println("Finished looping through VGs and Vs.")
 
 	var epochToIndexFrom uint64
-	lastIndexedEpoch, _ := findLastIndexedEpoch(DB)
+	lastIndexedEpoch, err := findLastIndexedEpoch(DB)
 
 	if err != nil {
 		// If no Epochs are present in DB, start from Epoch 1.
 		if err.Error() == NoResultError {
 			epochToIndexFrom = 1
+		} else {
+			log.Fatal(err)
 		}
 	} else {
 		epochToIndexFrom = lastIndexedEpoch.Number + 1
