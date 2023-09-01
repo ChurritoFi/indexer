@@ -284,11 +284,11 @@ func Index(DB *pg.DB) {
 				EpochId:               lastIndexedEpoch.ID,
 				ValidatorId:           vFromDB.ID,
 			}
-			_, err := DB.Model(vStats).Insert()
+			// _, err := DB.Model(vStats).Insert()
 
-			if err != nil {
-				log.Fatal(err)
-			}
+			// if err != nil {
+			// 	log.Fatal(err)
+			// }
 
 			// Find which is the epoch, validator was last elected in.
 			epochLastElected := getEpochFromBlock(validator.Node.LastElected)
@@ -390,10 +390,10 @@ func Index(DB *pg.DB) {
 		vgFromDB.GroupShare = groupShare
 
 		// Insert VGStats for the current round.
-		_, err = DB.Model(vgStats).Insert()
-		if err != nil {
-			log.Println(err)
-		}
+		// _, err = DB.Model(vgStats).Insert()
+		// if err != nil {
+		// 	log.Println(err)
+		// }
 
 		// Update vgFromDB in the DB.
 		_, err = DB.Model(vgFromDB).WherePK().Update()
